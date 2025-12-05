@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+	"strings"
 )
 
 type Block struct {
@@ -10,10 +11,12 @@ type Block struct {
 	Data     map[string]interface{}
 	PrevHash string
 	Hash     string
+	Nonce    int
 }
 
 type Blockchain struct {
-	Chain []Block
+	Chain      []Block
+	Difficulty int
 }
 
 func NewBlock(index int, data map[string]interface{}, prevHash string) Block {
@@ -21,15 +24,25 @@ func NewBlock(index int, data map[string]interface{}, prevHash string) Block {
 		Index:    index,
 		Data:     data,
 		PrevHash: prevHash,
+		Nonce:    0,
 	}
 	b.Hash = b.calculateHash()
 	return b
 }
 
 func (b *Block) calculateHash() string {
-	record := fmt.Sprintf("%d%v%s", b.Index, b.Data, b.PrevHash)
+	record := fmt.Sprintf("%d%v%s%d", b.Index, b.Data, b.PrevHash, b.Nonce)
 	hash := sha256.Sum256([]byte(record))
 	return fmt.Sprintf("%x", hash)
+}
+
+func (b *Block) MineBlock(difficulty int) {
+	for b.Hash[:difficulty] != strings.Repeat("0", difficulty) {
+		b.Nonce++
+		b.Hash = b.calculateHash()
+	}
+
+	fmt.Printf("Block mined: %s\n", b.Hash)
 }
 
 func (bc *Blockchain) CreateGenesisBlock() Block {
@@ -47,8 +60,9 @@ func (bc *Blockchain) GetLatestBlock() Block {
 
 func (bc *Blockchain) AddBlock(newBlock Block, data map[string]interface{}) {
 	prevBlock := bc.GetLatestBlock()
+
 	newBlock.PrevHash = prevBlock.Hash
-	newBlock.Hash = newBlock.calculateHash()
+	newBlock.MineBlock(bc.Difficulty)
 	bc.Chain = append(bc.Chain, newBlock)
 }
 
@@ -69,7 +83,7 @@ func (bc *Blockchain) IsChainValid() bool {
 }
 
 func main() {
-	bc := &Blockchain{}
+	bc := &Blockchain{Difficulty: 6}
 	genesisBlock := bc.CreateGenesisBlock()
 	bc.Chain = append(bc.Chain, genesisBlock)
 
@@ -79,9 +93,8 @@ func main() {
 		"amount":   50,
 	}
 	newBlock := NewBlock(1, newData, "")
-	if bc.IsChainValid() {
-		bc.AddBlock(newBlock, newData)
-	}
+	fmt.Printf("Mining block 1...\n")
+	bc.AddBlock(newBlock, newData)
 
 	anotherNewData := map[string]interface{}{
 		"sender":   "Bob",
@@ -89,23 +102,6 @@ func main() {
 		"amount":   30,
 	}
 	anotherNewBlock := NewBlock(2, anotherNewData, "")
-	if bc.IsChainValid() {
-		bc.AddBlock(anotherNewBlock, anotherNewData)
-	}
-
-	fmt.Println("Blockchain is valid?", bc.IsChainValid())
-
-	//tampering with the blockchain
-	bc.Chain[1].Data["amount"] = 10000
-
-	fmt.Println("Blockchain is valid after tampering?", bc.IsChainValid())
-	/*
-		for _, block := range bc.Chain {
-			fmt.Printf("Index: %d\n", block.Index)
-			fmt.Printf("Data: %v\n", block.Data)
-			fmt.Printf("PrevHash: %s\n", block.PrevHash)
-			fmt.Printf("Hash: %s\n", block.Hash)
-			fmt.Println()
-		}
-	*/
+	fmt.Printf("Mining block 2...\n")
+	bc.AddBlock(anotherNewBlock, anotherNewData)
 }
