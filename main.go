@@ -4,32 +4,59 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type Block struct {
-	Index    int
-	Data     map[string]interface{}
-	PrevHash string
-	Hash     string
-	Nonce    int
+	Data      map[string]interface{}
+	PrevHash  string
+	TimeStamp int64
+	Hash      string
+	Nonce     int
+}
+
+type Transaction struct {
+	FromAddress string
+	ToAddress   string
+	Amount      float64
 }
 
 type Blockchain struct {
-	Chain      []Block
-	Difficulty int
+	Chain               []Block
+	Difficulty          int
+	PendingTransactions []Transaction
+	MiningReward        float64
 }
 
-func NewBlock(data map[string]interface{}) Block {
+func NewBlock(timestamp int64, data map[string]interface{}) Block {
 	b := Block{
-		Data:  data,
-		Nonce: 0,
+		TimeStamp: timestamp,
+		Data:      data,
+		Nonce:     0,
 	}
 	b.Hash = b.calculateHash()
 	return b
 }
 
+func NewBlockchain(difficulty int, miningReward float64) *Blockchain {
+	return &Blockchain{
+		Chain:               []Block{},
+		Difficulty:          difficulty,
+		PendingTransactions: []Transaction{},
+		MiningReward:        miningReward,
+	}
+}
+
+func NewTransaction(from, to string, amount float64) Transaction {
+	return Transaction{
+		FromAddress: from,
+		ToAddress:   to,
+		Amount:      amount,
+	}
+}
+
 func (b *Block) calculateHash() string {
-	record := fmt.Sprintf("%d%v%s%d", b.Index, b.Data, b.PrevHash, b.Nonce)
+	record := fmt.Sprintf("%d%v%s%d", b.TimeStamp, b.Data, b.PrevHash, b.Nonce)
 	hash := sha256.Sum256([]byte(record))
 	return fmt.Sprintf("%x", hash)
 }
@@ -45,7 +72,9 @@ func (b *Block) MineBlock(difficulty int) {
 
 func (bc *Blockchain) CreateGenesisBlock() Block {
 
-	genesisBlock := NewBlock(map[string]interface{}{"message": "Genesis Block"})
+	currentTimeStamp := time.Now().Unix()
+
+	genesisBlock := NewBlock(currentTimeStamp, map[string]interface{}{"message": "Genesis Block"})
 
 	genesisBlock.PrevHash = "0"
 
@@ -59,12 +88,23 @@ func (bc *Blockchain) GetLatestBlock() Block {
 	return bc.Chain[len(bc.Chain)-1]
 }
 
-func (bc *Blockchain) AddBlock(newBlock Block, data map[string]interface{}) {
-	prevBlock := bc.GetLatestBlock()
+func (bc *Blockchain) MinePendingTransactions(miningRewardAddress string) {
+	currentTimeStamp := time.Now().Unix()
+	pendingTx := bc.PendingTransactions
+	block := NewBlock(currentTimeStamp, map[string]interface{}{"transactions": pendingTx})
+	block.PrevHash = bc.GetLatestBlock().Hash
+	block.Hash = block.calculateHash()
 
-	newBlock.PrevHash = prevBlock.Hash
-	newBlock.MineBlock(bc.Difficulty)
-	bc.Chain = append(bc.Chain, newBlock)
+	block.MineBlock(bc.Difficulty)
+
+	fmt.Println("Block successfully mined!")
+
+	bc.Chain = append(bc.Chain, block)
+
+	bc.PendingTransactions = []Transaction{
+		NewTransaction("", miningRewardAddress, bc.MiningReward),
+	}
+
 }
 
 func (bc *Blockchain) IsChainValid() bool {
@@ -83,26 +123,56 @@ func (bc *Blockchain) IsChainValid() bool {
 	return true
 }
 
+func (bc *Blockchain) CreateTransaction(transaction Transaction) {
+	bc.PendingTransactions = append(bc.PendingTransactions, transaction)
+}
+
+func (bc *Blockchain) GetBalanceOfAddress(address string) float64 {
+	balance := 0.0
+
+	transactions := []Transaction{}
+
+	for _, block := range bc.Chain {
+		transactionsData, ok := block.Data["transactions"]
+		if !ok {
+			continue
+		}
+		txs, ok := transactionsData.([]Transaction)
+		if ok {
+			transactions = append(transactions, txs...)
+		}
+	}
+
+	for _, tx := range transactions {
+		if tx.FromAddress == address {
+			balance -= tx.Amount
+		}
+		if tx.ToAddress == address {
+			balance += tx.Amount
+		}
+	}
+
+	return balance
+}
+
 func main() {
-	bc := &Blockchain{Difficulty: 6}
+	blockchain_difficulty := 2
+	mining_reward := 100.0
+	bc := NewBlockchain(blockchain_difficulty, mining_reward)
 	genesisBlock := bc.CreateGenesisBlock()
 	bc.Chain = append(bc.Chain, genesisBlock)
 
-	newData := map[string]interface{}{
-		"sender":   "Alice",
-		"receiver": "Bob",
-		"amount":   50,
-	}
-	newBlock := NewBlock(newData)
-	fmt.Printf("Mining block 1...\n")
-	bc.AddBlock(newBlock, newData)
+	bc.CreateTransaction(NewTransaction("addr1", "addr2", 24.56))
+	bc.CreateTransaction(NewTransaction("addr2", "addr1", 10.0))
 
-	anotherNewData := map[string]interface{}{
-		"sender":   "Bob",
-		"receiver": "Charlie",
-		"amount":   30,
-	}
-	anotherNewBlock := NewBlock(anotherNewData)
-	fmt.Printf("Mining block 2...\n")
-	bc.AddBlock(anotherNewBlock, anotherNewData)
+	fmt.Println("Starting the miner...")
+	bc.MinePendingTransactions("miner-address")
+
+	fmt.Printf("Balance of miner is: %.2f\n", bc.GetBalanceOfAddress("miner-address"))
+
+	fmt.Println("Starting the miner...")
+	bc.MinePendingTransactions("miner-address")
+
+	fmt.Printf("Balance of miner is: %.2f\n", bc.GetBalanceOfAddress("miner-address"))
+
 }
