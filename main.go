@@ -52,6 +52,22 @@ func (bc *Blockchain) AddBlock(newBlock Block, data map[string]interface{}) {
 	bc.Chain = append(bc.Chain, newBlock)
 }
 
+func (bc *Blockchain) IsChainValid() bool {
+	for i := 1; i < len(bc.Chain); i++ {
+		currentBlock := bc.Chain[i]
+		prevBlock := bc.Chain[i-1]
+
+		if currentBlock.Hash != currentBlock.calculateHash() {
+			return false
+		}
+
+		if currentBlock.PrevHash != prevBlock.Hash {
+			return false
+		}
+	}
+	return true
+}
+
 func main() {
 	bc := &Blockchain{}
 	genesisBlock := bc.CreateGenesisBlock()
@@ -63,7 +79,9 @@ func main() {
 		"amount":   50,
 	}
 	newBlock := NewBlock(1, newData, "")
-	bc.AddBlock(newBlock, newData)
+	if bc.IsChainValid() {
+		bc.AddBlock(newBlock, newData)
+	}
 
 	anotherNewData := map[string]interface{}{
 		"sender":   "Bob",
@@ -71,13 +89,23 @@ func main() {
 		"amount":   30,
 	}
 	anotherNewBlock := NewBlock(2, anotherNewData, "")
-	bc.AddBlock(anotherNewBlock, anotherNewData)
-
-	for _, block := range bc.Chain {
-		fmt.Printf("Index: %d\n", block.Index)
-		fmt.Printf("Data: %v\n", block.Data)
-		fmt.Printf("PrevHash: %s\n", block.PrevHash)
-		fmt.Printf("Hash: %s\n", block.Hash)
-		fmt.Println()
+	if bc.IsChainValid() {
+		bc.AddBlock(anotherNewBlock, anotherNewData)
 	}
+
+	fmt.Println("Blockchain is valid?", bc.IsChainValid())
+
+	//tampering with the blockchain
+	bc.Chain[1].Data["amount"] = 10000
+
+	fmt.Println("Blockchain is valid after tampering?", bc.IsChainValid())
+	/*
+		for _, block := range bc.Chain {
+			fmt.Printf("Index: %d\n", block.Index)
+			fmt.Printf("Data: %v\n", block.Data)
+			fmt.Printf("PrevHash: %s\n", block.PrevHash)
+			fmt.Printf("Hash: %s\n", block.Hash)
+			fmt.Println()
+		}
+	*/
 }
