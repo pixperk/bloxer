@@ -19,12 +19,10 @@ type Blockchain struct {
 	Difficulty int
 }
 
-func NewBlock(index int, data map[string]interface{}, prevHash string) Block {
+func NewBlock(data map[string]interface{}) Block {
 	b := Block{
-		Index:    index,
-		Data:     data,
-		PrevHash: prevHash,
-		Nonce:    0,
+		Data:  data,
+		Nonce: 0,
 	}
 	b.Hash = b.calculateHash()
 	return b
@@ -47,7 +45,10 @@ func (b *Block) MineBlock(difficulty int) {
 
 func (bc *Blockchain) CreateGenesisBlock() Block {
 
-	genesisBlock := NewBlock(0, map[string]interface{}{"message": "Genesis Block"}, "0")
+	genesisBlock := NewBlock(map[string]interface{}{"message": "Genesis Block"})
+
+	genesisBlock.PrevHash = "0"
+
 	return genesisBlock
 }
 
@@ -92,7 +93,7 @@ func main() {
 		"receiver": "Bob",
 		"amount":   50,
 	}
-	newBlock := NewBlock(1, newData, "")
+	newBlock := NewBlock(newData)
 	fmt.Printf("Mining block 1...\n")
 	bc.AddBlock(newBlock, newData)
 
@@ -101,7 +102,7 @@ func main() {
 		"receiver": "Charlie",
 		"amount":   30,
 	}
-	anotherNewBlock := NewBlock(2, anotherNewData, "")
+	anotherNewBlock := NewBlock(anotherNewData)
 	fmt.Printf("Mining block 2...\n")
 	bc.AddBlock(anotherNewBlock, anotherNewData)
 }
