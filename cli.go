@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -264,6 +265,14 @@ func getJSONFloat(m map[string]interface{}, key string) float64 {
 
 func getJSONBytes(m map[string]interface{}, key string) []byte {
 	if v, ok := m[key]; ok {
+		// JSON encodes []byte as base64 string
+		if s, ok := v.(string); ok {
+			decoded, err := base64.StdEncoding.DecodeString(s)
+			if err == nil {
+				return decoded
+			}
+		}
+		// Fallback for array of numbers
 		if arr, ok := v.([]interface{}); ok {
 			bytes := make([]byte, len(arr))
 			for i, b := range arr {
