@@ -53,6 +53,10 @@ func (bc *Blockchain) IsChainValid() bool {
 		currentBlock := bc.Chain[i]
 		prevBlock := bc.Chain[i-1]
 
+		if valid, err := currentBlock.HasValidTransactions(); !valid || err != nil {
+			return false
+		}
+
 		if currentBlock.Hash != currentBlock.calculateHash() {
 			return false
 		}
@@ -64,8 +68,24 @@ func (bc *Blockchain) IsChainValid() bool {
 	return true
 }
 
-func (bc *Blockchain) CreateTransaction(transaction Transaction) {
+func (bc *Blockchain) AddTransaction(transaction Transaction) error {
+
+	if transaction.FromAddress == "" || transaction.ToAddress == "" {
+		return fmt.Errorf("transaction must include from and to address")
+	}
+
+	valid, err := transaction.isValid()
+
+	if err != nil {
+		return err
+	}
+
+	if !valid {
+		return fmt.Errorf("cannot add invalid transaction to chain")
+	}
+
 	bc.PendingTransactions = append(bc.PendingTransactions, transaction)
+	return nil
 }
 
 func (bc *Blockchain) GetBalanceOfAddress(address string) float64 {

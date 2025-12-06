@@ -43,3 +43,21 @@ func (b *Block) MineBlock(difficulty int) {
 	}
 	fmt.Printf("Block mined: %s\n", b.Hash)
 }
+
+func (b *Block) HasValidTransactions() (bool, error) {
+	transactions, ok := b.Data["transactions"].([]Transaction)
+	if !ok {
+		return false, fmt.Errorf("no transactions found in block data")
+	}
+
+	for _, tx := range transactions {
+		valid, err := tx.isValid()
+		if err != nil {
+			return false, err
+		}
+		if !valid {
+			return false, fmt.Errorf("invalid transaction found")
+		}
+	}
+	return true, nil
+}
