@@ -557,10 +557,12 @@ var validateCmd = &cobra.Command{
 }
 
 // Reset command
+var resetAll bool
+
 var resetCmd = &cobra.Command{
 	Use:   "reset",
 	Short: "Reset the blockchain",
-	Long:  "Delete all blockchain data and start fresh",
+	Long:  "Delete blockchain data and start fresh. Use --all to also delete wallet.",
 	Run: func(cmd *cobra.Command, args []string) {
 		dataPath := getDataDir()
 		bcPath := filepath.Join(dataPath, blockchainFile)
@@ -571,7 +573,38 @@ var resetCmd = &cobra.Command{
 		}
 
 		fmt.Printf("\n%s%s[OK] Blockchain reset successfully!%s\n\n", colorGreen, colorBold, colorReset)
+
+		if resetAll {
+			wPath := filepath.Join(dataPath, walletFile)
+			if err := os.Remove(wPath); err != nil && !os.IsNotExist(err) {
+				fmt.Printf("%s[ERROR] Error deleting wallet: %v%s\n", colorRed, err, colorReset)
+				return
+			}
+			fmt.Printf("%s%s[OK] Wallet deleted!%s\n\n", colorGreen, colorBold, colorReset)
+		}
+
 		fmt.Printf("  A new genesis block will be created on next operation.\n\n")
+	},
+}
+
+// Wallet delete command
+var walletDeleteCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete your wallet",
+	Long:  "Permanently delete your wallet. This action cannot be undone!",
+	Run: func(cmd *cobra.Command, args []string) {
+		if !walletExists() {
+			fmt.Printf("%s[ERROR] No wallet found.%s\n", colorRed, colorReset)
+			return
+		}
+
+		wPath := filepath.Join(getDataDir(), walletFile)
+		if err := os.Remove(wPath); err != nil {
+			fmt.Printf("%s[ERROR] Error deleting wallet: %v%s\n", colorRed, err, colorReset)
+			return
+		}
+
+		fmt.Printf("\n%s%s[OK] Wallet deleted!%s\n\n", colorGreen, colorBold, colorReset)
 	},
 }
 
@@ -579,10 +612,14 @@ func initCLI() {
 	// Wallet subcommands
 	walletCmd.AddCommand(walletCreateCmd)
 	walletCmd.AddCommand(walletShowCmd)
+	walletCmd.AddCommand(walletDeleteCmd)
 
 	// Send flags
 	sendCmd.Flags().Float64VarP(&sendAmount, "amount", "a", 0, "Amount to send")
 	sendCmd.Flags().StringVarP(&sendTo, "to", "t", "", "Recipient address")
+
+	// Reset flags
+	resetCmd.Flags().BoolVarP(&resetAll, "all", "a", false, "Also delete wallet")
 
 	// Add all commands to root
 	rootCmd.AddCommand(walletCmd)
