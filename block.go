@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"strings"
 	"time"
@@ -33,9 +32,8 @@ func NewGenesisBlock() Block {
 }
 
 func (b *Block) calculateHash() string {
-	record := fmt.Sprintf("%d%v%s%d", b.TimeStamp, b.Data, b.PrevHash, b.Nonce)
-	hash := sha256.Sum256([]byte(record))
-	return fmt.Sprintf("%x", hash)
+	data := fmt.Sprintf("%d%v%s%d", b.TimeStamp, b.Data, b.PrevHash, b.Nonce)
+	return calculateSHA256(data)
 }
 
 func (b *Block) MineBlock(difficulty int) {
